@@ -9,9 +9,10 @@ public class Units
     
     public int? Spear { get; init; }
     public int? Sword { get; init; }
+    public int? Archer { get; init; }
     public int? Axe { get; init; }
-    public int? Spy { get; init; }
     
+    public int? Spy { get; init; }
     public int? Light { get; init; }
     public int? Marcher { get; init; }
     public int? Heavy { get; init; }
@@ -35,6 +36,7 @@ public class Units
         {
             Spear = GetUnitValue(chromeDriver, tableId, "unit-item-spear", rowIndex),
             Sword = GetUnitValue(chromeDriver, tableId, "unit-item-sword", rowIndex),
+            Archer = GetUnitValue(chromeDriver, tableId, "unit-item-archer", rowIndex),
             Axe = GetUnitValue(chromeDriver, tableId, "unit-item-axe", rowIndex),
             Spy = GetUnitValue(chromeDriver, tableId, "unit-item-spy", rowIndex),
             Light = GetUnitValue(chromeDriver, tableId, "unit-item-light", rowIndex),
@@ -51,6 +53,7 @@ public class Units
         {
             units.Spear,
             units.Sword,
+            units.Archer,
             units.Axe,
             units.Spy,
             units.Light,
@@ -71,11 +74,11 @@ public class Units
         return units;
     }
 
-    private static int? GetUnitValue(ChromeDriver chromeDriver, string tableId, string unitClass, int localRowIndex)
+    private static int? GetUnitValue(ChromeDriver chromeDriver, string tableId, string unitClass, int rowIndex)
     {
         try
         {
-            var unitElement = chromeDriver.FindElement(By.CssSelector($"#{tableId} tr:nth-child({localRowIndex + 1}) .{unitClass}"));
+            var unitElement = chromeDriver.FindElement(By.CssSelector($"#{tableId} tr:nth-child({rowIndex + 1}) .{unitClass}"));
 
             if (string.IsNullOrWhiteSpace(unitElement.Text))
                 return null;

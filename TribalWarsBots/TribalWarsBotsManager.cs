@@ -41,8 +41,7 @@ public class TribalWarsBotsManager
             
             if (_botSettings.GatheringBotEnabled && timeForNextGatheringIteration <= currentTime)
             {
-                var tribalWarsGatheringBot = new TribalWarsGatheringBot(_chromeDriver, _botSettings.ChromeTabStartOfUrl);
-                timeForNextGatheringIteration = currentTime + await tribalWarsGatheringBot.RunAsync();
+                timeForNextGatheringIteration = currentTime + await new TribalWarsGatheringBot(_chromeDriver, _botSettings.ChromeTabStartOfUrl).RunAsync();
             }
             if (_botSettings.SimpleFarmBotEnabled && timeForNextFarmSimpleIteration <= currentTime)
             {
@@ -56,33 +55,8 @@ public class TribalWarsBotsManager
                 var nextAdvancedFarmTimeInSeconds = new Random().Next(_botSettings.AdvancedFarmIntervalMin, _botSettings.AdvancedFarmIntervalMax) * 60;
                 timeForNextFarmAdvancedIteration = currentTime + nextAdvancedFarmTimeInSeconds;
             }
-            
-            var times = new int[] { timeForNextGatheringIteration, timeForNextFarmSimpleIteration, timeForNextFarmAdvancedIteration };
-            AdjustBotTimings(ref times);
 
-            timeForNextGatheringIteration = times[0];
-            timeForNextFarmSimpleIteration = times[1];
-            timeForNextFarmAdvancedIteration = times[2];
-            
-            if (timeForNextGatheringIteration > currentTime)
-                Log.Information($"Next TribalWarsGatheringBot iteration at: {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow.Add(TimeSpan.FromSeconds
-                    (timeForNextGatheringIteration - currentTime)), TimeZoneInfo.Local)}");
-            if (timeForNextFarmSimpleIteration > currentTime)
-                Log.Information($"Next Simple Farm Bot iteration at: {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow.Add(TimeSpan.FromSeconds(timeForNextFarmSimpleIteration - currentTime)), TimeZoneInfo.Local)}");
-            if (timeForNextFarmAdvancedIteration > currentTime)
-                Log.Information($"Next Advanced Farm Bot iteration at: {TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow.Add(TimeSpan.FromSeconds(timeForNextFarmAdvancedIteration - currentTime)), TimeZoneInfo.Local)}");
-
-            var nextIterationTimes = new List<int> { timeForNextGatheringIteration, timeForNextFarmSimpleIteration, timeForNextFarmAdvancedIteration }
-                .Where(t => t > currentTime)
-                .DefaultIfEmpty(-1)
-                .Min();
-
-            if (nextIterationTimes > 0)
-            {
-                var delay = nextIterationTimes - currentTime;
-                await Task.Delay(TimeSpan.FromSeconds(delay));
-            }
-            else
+            if (await ScheduleNextIterationsAndLog(new int[] {timeForNextGatheringIteration, timeForNextFarmSimpleIteration, timeForNextFarmAdvancedIteration}, currentTime))
                 return;
         }
     }
@@ -90,6 +64,25 @@ public class TribalWarsBotsManager
     #endregion
     
     #region Private Helpers
+    
+    private static async Task<bool> ScheduleNextIterationsAndLog(int[] times, int currentTime)
+    {
+        AdjustBotTimings(ref times);
+           
+        if (times[0] > currentTime) // TribalWarsGatheringBot
+            Log.Information($"Next TribalWarsGatheringBot iteration at: {TimeZoneInfo.ConvertTimeFromUtc(DateTimeOffset.FromUnixTimeSeconds(times[0]).DateTime, TimeZoneInfo.Local)}");
+        if (times[1] > currentTime) // TribalWarsSimpleFarmBot
+            Log.Information($"Next TribalWarsSimpleFarmBot iteration at: {TimeZoneInfo.ConvertTimeFromUtc(DateTimeOffset.FromUnixTimeSeconds(times[1]).DateTime, TimeZoneInfo.Local)}");
+        if (times[2] > currentTime) // TribalWarsAdvancedFarmBot
+            Log.Information($"Next TribalWarsAdvancedFarmBot iteration at: {TimeZoneInfo.ConvertTimeFromUtc(DateTimeOffset.FromUnixTimeSeconds(times[2]).DateTime, TimeZoneInfo.Local)}");
+
+        var nearestTime = times.Where(t => t > currentTime).DefaultIfEmpty(-1).Min();
+        if (nearestTime <= 0) 
+            return true;
+        
+        await Task.Delay(TimeSpan.FromSeconds(nearestTime - currentTime));
+        return false;
+    }
     
     /// <summary>
     /// When times overlap in two minutes range adjust them to not run bots in same time. 

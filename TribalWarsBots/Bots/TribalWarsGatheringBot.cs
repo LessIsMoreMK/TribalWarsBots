@@ -84,16 +84,16 @@ public class TribalWarsGatheringBot
     private int GetTimeForNextGatheringIteration()
     {
         var gatheringCountdownElement = _chromeDriver.FindElements(By.CssSelector(".scavenge-option .return-countdown"));
-        var maxTime = 0;
+        var longestTime = 0;
 
         foreach (var gatheringCountDownText in gatheringCountdownElement.Select(element => element.Text))
         {
             var timeParts = gatheringCountDownText.Split(':');
             var seconds = int.Parse(timeParts[0]) * 3600 + int.Parse(timeParts[1]) * 60 + int.Parse(timeParts[2]);
-            maxTime = Math.Max(maxTime, seconds);
+            longestTime = Math.Max(longestTime, seconds);
         }
 
-        return maxTime + new Random().Next(45, 75); // Add 45-75 seconds
+        return longestTime + new Random().Next(45, 75); // Add 45-75 seconds
      }
         
     #endregion

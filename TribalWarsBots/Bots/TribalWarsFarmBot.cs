@@ -55,7 +55,7 @@ public class TribalWarsFarmBot
                     {
                         (_chromeDriver).ExecuteScript("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", farmRow);
                         
-                        if (farmRow.FindElements(By.CssSelector(".farm_icon_disabled")).Any())
+                        if (farmRow.FindElements(By.CssSelector(".farm_icon_disabled")).Any() && _farmMode == FarmMode.Simple)
                             break;
 
                         if (!await ProcessFarmRow(farmRow))
@@ -67,7 +67,7 @@ public class TribalWarsFarmBot
                         if (alertHandled && _farmMode == FarmMode.Simple)
                             break;
                         
-                        Thread.Sleep(new Random().Next(251, 300));
+                        await Task.Delay(new Random().Next(251, 300));
                     }
                     catch (Exception ex)
                     {
@@ -77,14 +77,14 @@ public class TribalWarsFarmBot
                 currentPage++;
             } while (_switchPages && 
                      (!alertHandled || _farmMode == FarmMode.Advanced) && 
-                     NavigationHelpers.GoToNextFarmPage(_chromeDriver, currentPage, _farmMode));
+                     NavigationHelpers.GoToNextFarmPage(_chromeDriver, currentPage));
         }
         catch (Exception ex)
         {
             Log.Error(ex, "An unhandled exception occurred while running TribalWarsFarmBot in mode {FarmMode}", _farmMode);
         }
         
-        Log.Information("TribalWarsFarmBot in mode {FarmMode} send: {SendAttacks} attacks.", _farmMode, sendAttacks);
+        Log.Information("TribalWarsFarmBot in mode {FarmMode} stopped at page {CurrentPage} send: {SendAttacks} attacks.", _farmMode, currentPage, sendAttacks);
     }
         
     #endregion
@@ -103,11 +103,11 @@ public class TribalWarsFarmBot
                 return await HandleGreenAttack(row, wallLevel);
             
             if (_farmMode == FarmMode.Advanced && !imageSrc.Contains("graphic/dots/green.png"))
-                return await HandleNotGreenAttack(row, wallLevel);
+                return await HandleNonGreenAttack(row, wallLevel);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error processing farm row:");
+            Log.Error(ex, "Error processing farm row");
         }
 
         return false;
@@ -124,7 +124,7 @@ public class TribalWarsFarmBot
                     return true;
                 
                 case not "?" or "0" when _farmMode == FarmMode.Advanced:
-                    return await HandleNotGreenAttack(row, wallLevel);
+                    return await HandleNonGreenAttack(row, wallLevel);
             }
         }
         catch (Exception ex)
@@ -135,7 +135,7 @@ public class TribalWarsFarmBot
         return false;
     }
     
-    private async Task<bool> HandleNotGreenAttack(IWebElement row, string? wallLevel)
+    private async Task<bool> HandleNonGreenAttack(IWebElement row, string? wallLevel)
     {
         try
         {
@@ -158,7 +158,7 @@ public class TribalWarsFarmBot
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error while handling not green attack");
+            Log.Error(ex, "Error while handling non green attack");
         }
 
         return false;
@@ -228,6 +228,14 @@ public class TribalWarsFarmBot
             var spyInput = _chromeDriver.FindElement(By.Id("unit_input_spy"));
             spyInput.Clear();
             spyInput.SendKeys("1");
+            
+            var axesInput = _chromeDriver.FindElement(By.Id("unit_input_axe"));
+            axesInput.Clear();
+            axesInput.SendKeys("100");
+                    
+            var lightInput = _chromeDriver.FindElement(By.Id("unit_input_light"));
+            lightInput.Clear();
+            lightInput.SendKeys("4");
 
             switch (wallLevel)
             {
@@ -236,44 +244,20 @@ public class TribalWarsFarmBot
                     var ramInput = _chromeDriver.FindElement(By.Id("unit_input_ram"));
                     ramInput.Clear();
                     ramInput.SendKeys("2");
-                    
-                    var axesInput = _chromeDriver.FindElement(By.Id("unit_input_axe"));
-                    axesInput.Clear();
-                    axesInput.SendKeys("100");
-                    
-                    var lightInput = _chromeDriver.FindElement(By.Id("unit_input_light"));
-                    lightInput.Clear();
-                    lightInput.SendKeys("4");
                     break;
                 }
                 case "2":
                 {
-                    var ramInput = _chromeDriver.FindElement(By.Id("unit_input_spy"));
+                    var ramInput = _chromeDriver.FindElement(By.Id("unit_input_ram"));
                     ramInput.Clear();
                     ramInput.SendKeys("4");
-                    
-                    var axesInput = _chromeDriver.FindElement(By.Id("unit_input_axe"));
-                    axesInput.Clear();
-                    axesInput.SendKeys("100");
-                    
-                    var lightInput = _chromeDriver.FindElement(By.Id("unit_input_light"));
-                    lightInput.Clear();
-                    lightInput.SendKeys("4");
                     break;
                 }
                 case "3":
                 {
-                    var ramInput = _chromeDriver.FindElement(By.Id("unit_input_spy"));
+                    var ramInput = _chromeDriver.FindElement(By.Id("unit_input_ram"));
                     ramInput.Clear();
                     ramInput.SendKeys("8");
-                    
-                    var axesInput = _chromeDriver.FindElement(By.Id("unit_input_axe"));
-                    axesInput.Clear();
-                    axesInput.SendKeys("100");
-                    
-                    var lightInput = _chromeDriver.FindElement(By.Id("unit_input_light"));
-                    lightInput.Clear();
-                    lightInput.SendKeys("4");
                     break;
                 }
                 default:
@@ -294,8 +278,7 @@ public class TribalWarsFarmBot
     {
         try
         {
-            var placeButtonXpath = ".//a[.//img[contains(@src, 'graphic/buildings/place.png')]]";
-            var element = row.FindElement(By.XPath(placeButtonXpath));
+            var element = row.FindElement(By.XPath(".//a[.//img[contains(@src, 'graphic/buildings/place.png')]]"));
             element.Click();
             
             await Task.Delay(new Random().Next(300, 800));
@@ -303,7 +286,7 @@ public class TribalWarsFarmBot
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"Error while opening palace");
+            Log.Error(ex, "Error while opening place");
         }
 
         return false;
@@ -362,6 +345,8 @@ public class TribalWarsFarmBot
     
     private (Units Agresor, Units AgresorLost, Units Defender, Units DefenderLost) GetReportInfo(ISearchContext row)
     {
+        var originalWindow = _chromeDriver.CurrentWindowHandle;
+        
         var reportLink = row.FindElement(By.XPath(".//td/a[contains(@href, 'screen=report')]")).GetAttribute("href");
         ((IJavaScriptExecutor)_chromeDriver).ExecuteScript("window.open(arguments[0]);", reportLink);
         var windows = _chromeDriver.WindowHandles;
@@ -373,7 +358,7 @@ public class TribalWarsFarmBot
         var defenderLost = Units.GetUnitNumbers(_chromeDriver, "attack_info_def_units", 2);
 
         _chromeDriver.Close();
-        _chromeDriver.SwitchTo().Window(windows[0]);
+        _chromeDriver.SwitchTo().Window(originalWindow);
 
         return (aggressorSent, aggressorLost, defender, defenderLost);
     }

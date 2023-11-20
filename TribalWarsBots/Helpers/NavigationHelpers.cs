@@ -1,7 +1,6 @@
 ﻿using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using Serilog;
-using TribalWarsBots.Types;
 
 namespace TribalWarsBots.Helpers;
 
@@ -22,7 +21,7 @@ public static class NavigationHelpers
         return false;
     }
     
-    public static bool ClickOnElementByXPath(ChromeDriver chromeDriver, string xpath, bool ignoreNoSuchElementEx = false)
+    public static bool ClickOnElementByXPath(ChromeDriver chromeDriver, string xpath, bool ignoreLogForNoSuchElementEx = false)
     {
         try
         {
@@ -32,29 +31,28 @@ public static class NavigationHelpers
         }
         catch (NoSuchElementException)
         {
-            if (!ignoreNoSuchElementEx)
+            if (!ignoreLogForNoSuchElementEx)
                 Log.Error("Could not found element with XPath: {Xpath}", xpath);
-
             return false;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "An unhandled exception occurred while trying to click on xpath: {Xpath}", xpath);
+            Log.Error(ex, "An unhandled exception occurred while trying to click on element with xpath: {Xpath}", xpath);
             return false;
         }
     }
 
-    public static bool ClickOnElementById(ChromeDriver chromeDriver, string id, bool ignoreNoSuchElementEx = false)
+    public static bool ClickOnElementById(ChromeDriver chromeDriver, string id, bool ignoreLogForNoSuchElementEx = false)
     {
         try
         {
-            var elementToClick = chromeDriver.FindElement(By.Id(id));
-            elementToClick.Click();
+            var element = chromeDriver.FindElement(By.Id(id));
+            element.Click();
             return true;
         }
         catch (NoSuchElementException)
         {
-            if (!ignoreNoSuchElementEx)
+            if (!ignoreLogForNoSuchElementEx)
                 Log.Error($"Could not found element with id: {id}", id);
             return false;
         }
@@ -65,7 +63,7 @@ public static class NavigationHelpers
         }
     }
     
-    public static bool GoToNextFarmPage(ChromeDriver driver, int currentPage, FarmMode farmMode)
+    public static bool GoToNextFarmPage(ChromeDriver driver, int currentPage)
     {
         try
         {
@@ -77,7 +75,6 @@ public static class NavigationHelpers
         }
         catch (NoSuchElementException)
         {
-            Log.Information("TribalWarsFarmBot in mode {FarmMode} stopped at page {CurrentPage}", farmMode, currentPage);
             return false;
         }
         catch (Exception ex)
